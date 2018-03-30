@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="8de2603f-df15-4efe-844f-ea0fe6045e74" name="Default" comment="idea project settings">
+    <list default="true" id="8de2603f-df15-4efe-844f-ea0fe6045e74" name="Default" comment="Add: diff.js implements orderbook delta calculation; bitstamp.js first working orderbook fetcher; app.js simple implementation of the parent process listens stdout from fetcher">
       <change beforePath="" afterPath="$PROJECT_DIR$/diff.js" />
       <change beforePath="" afterPath="$PROJECT_DIR$/fetchers/bitstamp.js" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="" />
       <change beforePath="$PROJECT_DIR$/app.js" afterPath="$PROJECT_DIR$/app.js" />
       <change beforePath="$PROJECT_DIR$/package-lock.json" afterPath="$PROJECT_DIR$/package-lock.json" />
       <change beforePath="$PROJECT_DIR$/package.json" afterPath="$PROJECT_DIR$/package.json" />
@@ -127,11 +127,6 @@
             <path>
               <item name="collector" type="b2602c69:ProjectViewProjectNode" />
               <item name="collector" type="462c0819:PsiDirectoryNode" />
-              <item name=".idea" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="collector" type="b2602c69:ProjectViewProjectNode" />
-              <item name="collector" type="462c0819:PsiDirectoryNode" />
               <item name="fetchers" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
@@ -220,10 +215,10 @@
     <frame x="-11" y="-11" width="1942" height="1042" extended-state="0" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32992327" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
+      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32938388" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Palette&#9;" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32938388" sideWeight="0.5" order="0" side_tool="true" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32938388" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32938388" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.36255923" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="npm" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="true" content_ui="tabs" />
       <window_info id="Designer" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
@@ -274,7 +269,8 @@
     <MESSAGE value="Initial Commit" />
     <MESSAGE value="test commit from idea" />
     <MESSAGE value="idea project settings" />
-    <option name="LAST_COMMIT_MESSAGE" value="idea project settings" />
+    <MESSAGE value="Add: diff.js implements orderbook delta calculation; bitstamp.js first working orderbook fetcher; app.js simple implementation of the parent process listens stdout from fetcher" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add: diff.js implements orderbook delta calculation; bitstamp.js first working orderbook fetcher; app.js simple implementation of the parent process listens stdout from fetcher" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
