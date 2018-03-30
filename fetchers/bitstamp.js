@@ -47,7 +47,7 @@ var pairs = ['btcusd']//, 'btceur']
 
 function fetchTrades(curpair){
 
-    https.get('https://www.bitstamp.net/api/v2/transactions/' + curpair + "/?time=minute", function(resp){
+    https.get('https://www.bitstamp.net/api/v2/transactions/' + curpair + "/?time=hour", function(resp){
 
         var data = ''
 
@@ -78,10 +78,9 @@ function fetchTrades(curpair){
                     return t['date'] > lastts
                 })
 
-                console.log('filtered by timestamp ' + lastts)
-                console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
+                var newlastts = lastts
 
-                for(var i = 0; i < trades.length; i++){
+                for(var i = trades.length-1; i >= 0; i--){
 
                     var t = trades[i]
                     var ts = t["date"] * 1000
@@ -90,10 +89,16 @@ function fetchTrades(curpair){
                     var amount = t["amount"]
                     var sellbuy = t["type"] == 0 ? 'B' : "S" //0 (buy) or 1 (sell).
 
+                    newlastts = t["date"]
+
                     console.log("T " + ts + " bitstamp " + curpair + " " + tid + " " + sellbuy + " " + price + " " + amount )
                 }
 
-                db.put('last_trade_timestamp', trades[0]['date'], function(){
+                console.log('filtered by timestamp ' + lastts)
+                console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
+                console.log("new last timestamp: " + newlastts)
+
+                db.put('last_trade_timestamp', newlastts, function(){
 
                     setTimeout(function(){
                         fetchTrades(curpair)

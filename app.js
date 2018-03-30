@@ -29,7 +29,7 @@ child.stdout.on('data', function(data){
                 }
             }
             else{
-                console.log("!O /" + line + "/" + line.length)
+                console.log("!OT " + line)
 
             }
         }
