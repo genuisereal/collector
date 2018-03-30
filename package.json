@@ -6,6 +6,8 @@
     "start": "node ./app.js"
   },
   "dependencies": {
-    "@apla/clickhouse": "*"
+    "@apla/clickhouse": "*",
+    "levelup": "*",
+    "leveldown": "*"
   }
 }
