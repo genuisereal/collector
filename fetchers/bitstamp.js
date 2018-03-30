@@ -1,6 +1,9 @@
 /*
 API
 https://www.bitstamp.net/api/
+
+orderbook api
+
 https://www.bitstamp.net/api/v2/order_book/btcusd/
 
 pairs btcusd, btceur
@@ -19,6 +22,17 @@ pairs btcusd, btceur
         ...
         ]
 }
+
+trades api
+
+https://www.bitstamp.net/api/v2/transactions/btcusd/?time=minute
+time : minute, hour(default), day
+
+[{"date": "1522421103", "tid": "60762078", "price": "6833.87", "type": "0", "amount": "0.00108707"},
+{"date": "1522421103", "tid": "60762077", "price": "6831.35", "type": "1", "amount": "0.26957422"},
+{"date": "1522421103", "tid": "60762076", "price": "6831.35", "type": "1", "amount": "0.05045656"},
+...
+{"date": "1522421045", "tid": "60761951", "price": "6852.38", "type": "1", "amount": "0.04000000"}]
 */
 
 var https = require('https');
@@ -27,6 +41,49 @@ var diff = require('../diff')
 var pairState = {}
 
 var pairs = ['btcusd', 'btceur']
+
+function fetchTrades(curpair){
+
+    https.get('https://www.bitstamp.net/api/v2/transactions/' + curpair + "/?time=minute", function(resp){
+
+        var data = ''
+
+        resp.on('data', function(chunk){
+
+            data += chunk
+        })
+
+        resp.on('end', function(){
+
+            var trades = JSON.parse(data)
+
+            for(var i = 0; i < trades.length; i++){
+
+                var t = trades[i]
+                var ts = t["date"] * 1000
+                var tid = t["tid"]
+                var price = t["price"]
+                var amount = t["amount"]
+                var sellbuy = t["type"] == 0 ? 'B' : "S" //0 (buy) or 1 (sell).
+
+                console.log("T " + ts + " bitstamp " + curpair + " " + tid + " " + sellbuy + " " + price + " " + amount )
+            }
+
+            setTimeout(function(){
+                fetchTrades(curpair)
+            }, 15 * 1000)
+
+        })
+    }).on('error', function(error){
+        console.log("Error trades: bitstamp " + curpair + " " + error.message)
+
+        setTimeout(function(){
+            console.log('refetch on error trades bitstamp ' + curpair)
+
+            fetchTrades(curpair)
+        }, 30000)
+    })
+}
 
 function fetchOrderbook(curpair){
 
@@ -116,10 +173,10 @@ function fetchOrderbook(curpair){
         }, 15 * 1000)
 
     }).on('error', function(error){
-        console.log("https error: " + error.message)
+        console.log("Error orderoobk: bitstamp " + curpair + " " + error.message)
 
         setTimeout(function(){
-            console.log('refetch after error for ' + curpair)
+            console.log('refetch on error bitstamp orderbook ' + curpair)
             pairState[curpair]['initialized'] = false
             fetchOrderbook(curpair)
         }, 30 * 1000)
@@ -135,7 +192,8 @@ function startNextPair(){
         var p = pairs[nextPair]
         pairState[p] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
 
-        fetchOrderbook(p)
+        //fetchOrderbook(p)
+        fetchTrades(p)
         nextPair++
         setTimeout(startNextPair, 5000)
     }
