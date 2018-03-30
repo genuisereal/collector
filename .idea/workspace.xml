@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="8de2603f-df15-4efe-844f-ea0fe6045e74" name="Default" comment="">
+    <list default="true" id="8de2603f-df15-4efe-844f-ea0fe6045e74" name="Default" comment="idea project settings">
       <change beforePath="" afterPath="$PROJECT_DIR$/diff.js" />
       <change beforePath="" afterPath="$PROJECT_DIR$/fetchers/bitstamp.js" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
