@@ -38,9 +38,12 @@ time : minute, hour(default), day
 var https = require('https');
 var diff = require('../diff')
 
+var levelup = require('levelup')
+var leveldown = require('leveldown')
+
 var pairState = {}
 
-var pairs = ['btcusd', 'btceur']
+var pairs = ['btcusd']//, 'btceur']
 
 function fetchTrades(curpair){
 
@@ -55,23 +58,50 @@ function fetchTrades(curpair){
 
         resp.on('end', function(){
 
-            var trades = JSON.parse(data)
+            var tdata = JSON.parse(data)
 
-            for(var i = 0; i < trades.length; i++){
+            var db = pairState[curpair]["db"]
 
-                var t = trades[i]
-                var ts = t["date"] * 1000
-                var tid = t["tid"]
-                var price = t["price"]
-                var amount = t["amount"]
-                var sellbuy = t["type"] == 0 ? 'B' : "S" //0 (buy) or 1 (sell).
+            db.get("last_trade_timestamp", function(err, value){
 
-                console.log("T " + ts + " bitstamp " + curpair + " " + tid + " " + sellbuy + " " + price + " " + amount )
-            }
+                if(err){
+                    console.log("db get error")
 
-            setTimeout(function(){
-                fetchTrades(curpair)
-            }, 15 * 1000)
+                    value = tdata[tdata.length-1]["date"]
+
+                    db.put('last_trade_timestamp', value)
+                }
+
+                var lastts = parseInt(value.toString())
+
+                var trades = tdata.filter(function(t) {
+                    return t['date'] > lastts
+                })
+
+                console.log('filtered by timestamp ' + lastts)
+                console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
+
+                for(var i = 0; i < trades.length; i++){
+
+                    var t = trades[i]
+                    var ts = t["date"] * 1000
+                    var tid = t["tid"]
+                    var price = t["price"]
+                    var amount = t["amount"]
+                    var sellbuy = t["type"] == 0 ? 'B' : "S" //0 (buy) or 1 (sell).
+
+                    console.log("T " + ts + " bitstamp " + curpair + " " + tid + " " + sellbuy + " " + price + " " + amount )
+                }
+
+                db.put('last_trade_timestamp', trades[0]['date'], function(){
+
+                    setTimeout(function(){
+                        fetchTrades(curpair)
+                    }, 15 * 1000)
+                })
+
+
+            })
 
         })
     }).on('error', function(error){
@@ -191,6 +221,8 @@ function startNextPair(){
     if(nextPair < pairs.length){
         var p = pairs[nextPair]
         pairState[p] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
+
+        pairState[p]['db'] = levelup(leveldown("./bitstampTrades_" + p + "_db"))
 
         //fetchOrderbook(p)
         fetchTrades(p)
