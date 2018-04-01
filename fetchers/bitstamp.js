@@ -43,7 +43,7 @@ var leveldown = require('leveldown')
 
 var pairState = {}
 
-var pairs = ['btcusd']//, 'btceur']
+var pairs = ['btcusd', 'btceur']
 
 function fetchTrades(curpair){
 
@@ -62,27 +62,19 @@ function fetchTrades(curpair){
 
             var db = pairState[curpair]["db"]
 
-            var prevts = await db.get("time")
+            var newts = prevts = await db.get("time")
 
             var trades = tdata.filter(function(t) {
                 return t['date'] > prevts
             })
+            trades.forEach((t) => {
 
-            var newts = prevts
+                if(parseInt(t.date) > newts){
+                    newts = parseInt(t.date)
+                }
 
-            for(var i = trades.length-1; i >= 0; i--){
-
-                var t = trades[i]
-                var ts = t["date"] * 1000
-                var tid = t["tid"]
-                var price = t["price"]
-                var amount = t["amount"]
-                var sellbuy = t["type"] == 0 ? 'B' : "S" //0 (buy) or 1 (sell).
-
-                newts = parseInt(t["date"])
-
-                console.log("T " + ts + " bitstamp " + curpair + " " + tid + " " + sellbuy + " " + price + " " + amount )
-            }
+                console.log("T " + (t.date * 1000) + " bitstamp " + curpair + " " +t.tid + " " + (t.type == 0 ? 'B' : 'S') + " " + t.price + " " + t.amount)
+            })
 
             console.log('filtered by timestamp ' + prevts)
             console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
@@ -218,8 +210,8 @@ async function startNextPair(){
 
         //fetchOrderbook(p)
         fetchTrades(p)
-        // nextPair++
-        // setTimeout(startNextPair, 5000)
+        nextPair++
+        setTimeout(startNextPair, 5000)
     }
 }
 
