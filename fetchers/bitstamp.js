@@ -48,28 +48,27 @@ function fetchTrades(pair){
 
         var data = ''
 
-        resp.on('data', function(chunk){
+        resp.on('data', (chunk)=>{
 
             data += chunk
         })
 
-        resp.on('end', async function(){
+        resp.on('end', async ()=>{
 
             var tdata = JSON.parse(data)
 
             var newtime = lasttime = parseInt(await timeDb[pair].get("time"))
 
             var trades = tdata
-                .filter(function(t) {
-
-                    return t['date'] > lasttime
+                .filter(t =>{
+                    return t.date > lasttime
                 })
-                .sort((t, tt) => {
+                .sort((t, tt) =>{
 
                     return t.date < tt.date ? -1 : t.date > tt.date ? 1 : 0
                 })
 
-            trades.forEach((t) => {
+            trades.forEach(t => {
 
                 console.log("T " + (t.date * 1000) + " bitstamp " + pair + " " +t.tid + " " + (t.type == 0 ? 'B' : 'S') + " " + t.price + " " + t.amount)
             })
@@ -85,7 +84,7 @@ function fetchTrades(pair){
 
             await timeDb[pair].put('time', newtime)
 
-            setTimeout(function(){
+            setTimeout(()=>{
                 fetchTrades(pair)
             }, 15 * 1000)
         })
@@ -101,9 +100,9 @@ function fetchTrades(pair){
     })
 }
 
-function fetchOrderbook(curpair){
+function fetchOrderbook(pair){
 
-    https.get('https://www.bitstamp.net/api/v2/order_book/' + curpair +"/", function(resp){
+    https.get('https://www.bitstamp.net/api/v2/order_book/' + pair +"/", function(resp){
 
         var data = '';
 
@@ -139,37 +138,37 @@ function fetchOrderbook(curpair){
             }
 
             //print
-            if(!bookState[curpair]['initialized']){
+            if(!bookState[pair]['initialized']){
                 //reset pair orderbook state and print
-                bookState[curpair]['initialized'] = true;
-                bookState[curpair]['currentBook'] = newBook
+                bookState[pair]['initialized'] = true;
+                bookState[pair]['currentBook'] = newBook
 
                 var bids = Object.keys(newBook['bids'])
 
                 for(var i = 0; i < bids.length; i++){
                     var price = bids[i]
-                    console.log("O " + ts + " bitstamp " + curpair + " B " + price + " " + newBook['bids'][price] + " R")
+                    console.log("O " + ts + " bitstamp " + pair + " B " + price + " " + newBook['bids'][price] + " R")
                 }
 
                 var asks = Object.keys(newBook['asks'])
 
                 for(var i = 0; i < asks.length; i++){
                     var price = asks[i]
-                    console.log("O " + ts + " bitstamp " + curpair + " A " + price + " " + newBook['asks'][price] + " R")
+                    console.log("O " + ts + " bitstamp " + pair + " A " + price + " " + newBook['asks'][price] + " R")
                 }
             }
             else{
                 //print delta
-                var delta = diff.orderbookDiff(bookState[curpair]['currentBook'], newBook)
+                var delta = diff.orderbookDiff(bookState[pair]['currentBook'], newBook)
 
-                bookState[curpair]['currentBook'] = newBook
+                bookState[pair]['currentBook'] = newBook
 
                 if(delta['bids']){
                     var bids = Object.keys(delta['bids'])
 
                     for(var i = 0; i < bids.length; i++){
                         var price = bids[i]
-                        console.log("O " + ts + " bitstamp " + curpair + " B " + price + " " + delta['bids'][price])
+                        console.log("O " + ts + " bitstamp " + pair + " B " + price + " " + delta['bids'][price])
                     }
                 }
 
@@ -178,55 +177,61 @@ function fetchOrderbook(curpair){
 
                     for(var i = 0; i < asks.length; i++){
                         var price = asks[i]
-                        console.log("O " + ts + " bitstamp " + curpair + " A " + price + " " + delta['asks'][price])
+                        console.log("O " + ts + " bitstamp " + pair + " A " + price + " " + delta['asks'][price])
                     }
                 }
             }
         })
 
         setTimeout(function(){
-            fetchOrderbook(curpair)
+            fetchOrderbook(pair)
         }, 15 * 1000)
 
     }).on('error', function(error){
-        console.log("Error orderoobk: bitstamp " + curpair + " " + error.message)
+        console.log("Error orderoobk: bitstamp " + pair + " " + error.message)
 
         setTimeout(function(){
-            console.log('refetch on error bitstamp orderbook ' + curpair)
-            bookState[curpair]['initialized'] = false
-            fetchOrderbook(curpair)
+            console.log('refetch on error bitstamp orderbook ' + pair)
+            bookState[pair]['initialized'] = false
+            fetchOrderbook(pair)
         }, 30 * 1000)
 
     })
 
 }
 
-var nextPair = 0
+async function start(){
 
-async function startNextPair(){
-    if(nextPair < pairs.length){
-        var p = pairs[nextPair]
-        bookState[p] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
+    for(var i = 0; i < pairs.length; i++){
 
-        timeDb[p] = await createTimeDb(p)
+        var pair = pairs[i]
 
+        bookState[pair] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
 
-        //fetchOrderbook(p)
-        fetchTrades(p)
-        nextPair++
-        setTimeout(startNextPair, 5000)
+        timeDb[pair] = await createTimeDb(pair)
+
+        //fetchOrderbook(pair)
+        fetchTrades(pair)
+
+        await sleep(5000)
     }
+}
+
+function sleep(ms){
+    return new Promise( resolve => {
+        setTimeout(resolve, ms)
+    })
 }
 
 var levelup = require('levelup')
 var leveldown = require('leveldown')
 
-async function createTimeDb(p){
+async function createTimeDb(pair){
 
-    var db = levelup(leveldown("./lasttrade_bitstamp_" + p))
+    var db = levelup(leveldown("./lasttrade_bitstamp_" + pair))
 
     try{
-        var time = await db.get("time")
+        await db.get("time")
     }catch(e){
         //define current time as value
         await db.put("time", new Date().getTime()/1000)
@@ -235,5 +240,5 @@ async function createTimeDb(p){
     return db
 }
 
-startNextPair()
+start()
 
