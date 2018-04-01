@@ -38,16 +38,13 @@ time : minute, hour(default), day
 var https = require('https');
 var diff = require('../diff')
 
-var levelup = require('levelup')
-var leveldown = require('leveldown')
-
-var pairState = {}
-
 var pairs = ['btcusd', 'btceur']
 
-function fetchTrades(curpair){
+var bookState = timeDb = {}
 
-    https.get('https://www.bitstamp.net/api/v2/transactions/' + curpair + "/?time=hour", function(resp){
+function fetchTrades(pair){
+
+    https.get('https://www.bitstamp.net/api/v2/transactions/' + pair + "/?time=hour", function(resp){
 
         var data = ''
 
@@ -60,40 +57,46 @@ function fetchTrades(curpair){
 
             var tdata = JSON.parse(data)
 
-            var db = pairState[curpair]["db"]
+            var newtime = lasttime = parseInt(await timeDb[pair].get("time"))
 
-            var newts = prevts = await db.get("time")
+            var trades = tdata
+                .filter(function(t) {
 
-            var trades = tdata.filter(function(t) {
-                return t['date'] > prevts
-            })
+                    return t['date'] > lasttime
+                })
+                .sort((t, tt) => {
+
+                    return t.date < tt.date ? -1 : t.date > tt.date ? 1 : 0
+                })
+
             trades.forEach((t) => {
 
-                if(parseInt(t.date) > newts){
-                    newts = parseInt(t.date)
-                }
-
-                console.log("T " + (t.date * 1000) + " bitstamp " + curpair + " " +t.tid + " " + (t.type == 0 ? 'B' : 'S') + " " + t.price + " " + t.amount)
+                console.log("T " + (t.date * 1000) + " bitstamp " + pair + " " +t.tid + " " + (t.type == 0 ? 'B' : 'S') + " " + t.price + " " + t.amount)
             })
 
-            console.log('filtered by timestamp ' + prevts)
-            console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
-            console.log("new last timestamp: " + newts)
+            if(trades.length != 0){
 
-            await db.put('time', newts)
+                newtime = parseInt(trades[trades.length-1].date) // last trade date (trades is sorted in asc mode)
+            }
+
+            console.log('filtered by timestamp ' + lasttime)
+            console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
+            console.log("new last timestamp: " + newtime)
+
+            await timeDb[pair].put('time', newtime)
 
             setTimeout(function(){
-                fetchTrades(curpair)
+                fetchTrades(pair)
             }, 15 * 1000)
         })
 
     }).on('error', function(error){
-        console.log("Error trades: bitstamp " + curpair + " " + error.message)
+        console.log("Error trades: bitstamp " + pair + " " + error.message)
 
         setTimeout(function(){
-            console.log('refetch on error trades bitstamp ' + curpair)
+            console.log('refetch on error trades bitstamp ' + pair)
 
-            fetchTrades(curpair)
+            fetchTrades(pair)
         }, 30000)
     })
 }
@@ -136,10 +139,10 @@ function fetchOrderbook(curpair){
             }
 
             //print
-            if(!pairState[curpair]['initialized']){
+            if(!bookState[curpair]['initialized']){
                 //reset pair orderbook state and print
-                pairState[curpair]['initialized'] = true;
-                pairState[curpair]['currentBook'] = newBook
+                bookState[curpair]['initialized'] = true;
+                bookState[curpair]['currentBook'] = newBook
 
                 var bids = Object.keys(newBook['bids'])
 
@@ -157,9 +160,9 @@ function fetchOrderbook(curpair){
             }
             else{
                 //print delta
-                var delta = diff.orderbookDiff(pairState[curpair]['currentBook'], newBook)
+                var delta = diff.orderbookDiff(bookState[curpair]['currentBook'], newBook)
 
-                pairState[curpair]['currentBook'] = newBook
+                bookState[curpair]['currentBook'] = newBook
 
                 if(delta['bids']){
                     var bids = Object.keys(delta['bids'])
@@ -190,7 +193,7 @@ function fetchOrderbook(curpair){
 
         setTimeout(function(){
             console.log('refetch on error bitstamp orderbook ' + curpair)
-            pairState[curpair]['initialized'] = false
+            bookState[curpair]['initialized'] = false
             fetchOrderbook(curpair)
         }, 30 * 1000)
 
@@ -203,9 +206,9 @@ var nextPair = 0
 async function startNextPair(){
     if(nextPair < pairs.length){
         var p = pairs[nextPair]
-        pairState[p] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
+        bookState[p] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
 
-        pairState[p]['db'] = await createDb(p)
+        timeDb[p] = await createTimeDb(p)
 
 
         //fetchOrderbook(p)
@@ -215,7 +218,10 @@ async function startNextPair(){
     }
 }
 
-async function createDb(p){
+var levelup = require('levelup')
+var leveldown = require('leveldown')
+
+async function createTimeDb(p){
 
     var db = levelup(leveldown("./lasttrade_bitstamp_" + p))
 
