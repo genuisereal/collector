@@ -56,59 +56,45 @@ function fetchTrades(curpair){
             data += chunk
         })
 
-        resp.on('end', function(){
+        resp.on('end', async function(){
 
             var tdata = JSON.parse(data)
 
             var db = pairState[curpair]["db"]
 
-            db.get("last_trade_timestamp", function(err, value){
+            var prevts = await db.get("time")
 
-                if(err){
-                    console.log("db get error")
-
-                    value = tdata[tdata.length-1]["date"]
-
-                    db.put('last_trade_timestamp', value)
-                }
-
-                var lastts = parseInt(value.toString())
-
-                var trades = tdata.filter(function(t) {
-                    return t['date'] > lastts
-                })
-
-                var newlastts = lastts
-
-                for(var i = trades.length-1; i >= 0; i--){
-
-                    var t = trades[i]
-                    var ts = t["date"] * 1000
-                    var tid = t["tid"]
-                    var price = t["price"]
-                    var amount = t["amount"]
-                    var sellbuy = t["type"] == 0 ? 'B' : "S" //0 (buy) or 1 (sell).
-
-                    newlastts = t["date"]
-
-                    console.log("T " + ts + " bitstamp " + curpair + " " + tid + " " + sellbuy + " " + price + " " + amount )
-                }
-
-                console.log('filtered by timestamp ' + lastts)
-                console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
-                console.log("new last timestamp: " + newlastts)
-
-                db.put('last_trade_timestamp', newlastts, function(){
-
-                    setTimeout(function(){
-                        fetchTrades(curpair)
-                    }, 15 * 1000)
-                })
-
-
+            var trades = tdata.filter(function(t) {
+                return t['date'] > prevts
             })
 
+            var newts = prevts
+
+            for(var i = trades.length-1; i >= 0; i--){
+
+                var t = trades[i]
+                var ts = t["date"] * 1000
+                var tid = t["tid"]
+                var price = t["price"]
+                var amount = t["amount"]
+                var sellbuy = t["type"] == 0 ? 'B' : "S" //0 (buy) or 1 (sell).
+
+                newts = parseInt(t["date"])
+
+                console.log("T " + ts + " bitstamp " + curpair + " " + tid + " " + sellbuy + " " + price + " " + amount )
+            }
+
+            console.log('filtered by timestamp ' + prevts)
+            console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
+            console.log("new last timestamp: " + newts)
+
+            await db.put('time', newts)
+
+            setTimeout(function(){
+                fetchTrades(curpair)
+            }, 15 * 1000)
         })
+
     }).on('error', function(error){
         console.log("Error trades: bitstamp " + curpair + " " + error.message)
 
@@ -222,18 +208,34 @@ function fetchOrderbook(curpair){
 
 var nextPair = 0
 
-function startNextPair(){
+async function startNextPair(){
     if(nextPair < pairs.length){
         var p = pairs[nextPair]
         pairState[p] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
 
-        pairState[p]['db'] = levelup(leveldown("./bitstampTrades_" + p + "_db"))
+        pairState[p]['db'] = await createDb(p)
+
 
         //fetchOrderbook(p)
         fetchTrades(p)
-        nextPair++
-        setTimeout(startNextPair, 5000)
+        // nextPair++
+        // setTimeout(startNextPair, 5000)
     }
 }
 
+async function createDb(p){
+
+    var db = levelup(leveldown("./lasttrade_bitstamp_" + p))
+
+    try{
+        var time = await db.get("time")
+    }catch(e){
+        //define current time as value
+        await db.put("time", new Date().getTime()/1000)
+    }
+
+    return db
+}
+
 startNextPair()
+
