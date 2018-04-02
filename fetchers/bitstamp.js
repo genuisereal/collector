@@ -35,18 +35,23 @@ time : minute, hour(default), day
 {"date": "1522421045", "tid": "60761951", "price": "6852.38", "type": "1", "amount": "0.04000000"}]
 */
 
-var https = require('https');
-var diff = require('../diff')
+let https = require('https');
+let diff = require('../diff')
+let assert = require('assert')
 
-var pairs = ['btcusd', 'btceur']
+let pairs = ['btcusd']//, 'btceur']
 
-var bookState = timeDb = {}
+let bookState = {}
+let bookValid = {}
+let timeDb = {}
+
+let ba = ['bids', 'asks']
 
 function fetchTrades(pair){
 
     https.get('https://www.bitstamp.net/api/v2/transactions/' + pair + "/?time=hour", function(resp){
 
-        var data = ''
+        let data = ''
 
         resp.on('data', (chunk)=>{
 
@@ -55,11 +60,11 @@ function fetchTrades(pair){
 
         resp.on('end', async ()=>{
 
-            var tdata = JSON.parse(data)
+            let tdata = JSON.parse(data)
 
-            var newtime = lasttime = parseInt(await timeDb[pair].get("time"))
+            let newtime = lasttime = parseInt(await timeDb[pair].get("time"))
 
-            var trades = tdata
+            let trades = tdata
                 .filter(t =>{
                     return t.date > lasttime
                 })
@@ -70,7 +75,7 @@ function fetchTrades(pair){
 
             trades.forEach(t => {
 
-                console.log("T " + (t.date * 1000) + " bitstamp " + pair + " " +t.tid + " " + (t.type == 0 ? 'B' : 'S') + " " + t.price + " " + t.amount)
+                console.log("T " + (t.date * 1000) + " bitstamp " + pair + " " +t.tid + " "+(t.type == 0 ? 'B' : 'S')+" " + t.price + " " + t.amount)
             })
 
             if(trades.length != 0){
@@ -104,7 +109,7 @@ function fetchOrderbook(pair){
 
     https.get('https://www.bitstamp.net/api/v2/order_book/' + pair +"/", function(resp){
 
-        var data = '';
+        let data = '';
 
         resp.on('data', function(chunk){
 
@@ -113,73 +118,56 @@ function fetchOrderbook(pair){
 
         resp.on('end', function(){
 
-            var book = JSON.parse(data);
-            var ts = book.timestamp * 1000;
+            let bdata = JSON.parse(data);
+            let ts = bdata.timestamp * 1000;
 
             //prepare orderbook state
-            var newBook = {'bids': {}, 'asks': {}}
+            let newBook = {'bids': {}, 'asks': {}}
 
-            var buys = book['bids'];
+            ba.forEach( side => {
 
-            if(buys){
-                for (var i = 0; i < buys.length; i++){
-                    var p = buys[i][0]
-                    newBook['bids'][p] = buys[i][1]
-                }
-            }
+                bdata[side].forEach( order => {
 
-            var sells = book['asks'];
+                    let price = order[0]
+                    let volume = order[1]
 
-            if(sells){
-                for(var i = 0; i < sells.length; i++){
-                    var p = sells[i][0]
-                    newBook['asks'][p] = sells[i][1]
-                }
-            }
+                    assert.ok(newBook[side][price] === undefined, "Error: price duplicate " + side + " p " + price + " v " + newBook[side][price] + " v` " + volume)
+
+                    newBook[side][price] = volume
+                })
+            })
 
             //print
-            if(!bookState[pair]['initialized']){
+            if(!bookValid[pair]){
                 //reset pair orderbook state and print
-                bookState[pair]['initialized'] = true;
-                bookState[pair]['currentBook'] = newBook
+                bookValid[pair] = true
+                bookState[pair] = newBook
 
-                var bids = Object.keys(newBook['bids'])
+                ba.forEach( side => {
+                    Object.keys(newBook[side])
+                        .forEach( price => {
 
-                for(var i = 0; i < bids.length; i++){
-                    var price = bids[i]
-                    console.log("O " + ts + " bitstamp " + pair + " B " + price + " " + newBook['bids'][price] + " R")
-                }
+                            let volume = newBook[side][price]
 
-                var asks = Object.keys(newBook['asks'])
-
-                for(var i = 0; i < asks.length; i++){
-                    var price = asks[i]
-                    console.log("O " + ts + " bitstamp " + pair + " A " + price + " " + newBook['asks'][price] + " R")
-                }
+                            console.log("O " + ts + " bitstamp " + pair + " "+(side == 'bids' ? "B" : 'A')+" " + price + " " + volume + " R")
+                        })
+                })
             }
             else{
                 //print delta
-                var delta = diff.orderbookDiff(bookState[pair]['currentBook'], newBook)
+                let delta = diff.orderbookDiff(bookState[pair], newBook)
 
-                bookState[pair]['currentBook'] = newBook
+                bookState[pair] = newBook
 
-                if(delta['bids']){
-                    var bids = Object.keys(delta['bids'])
+                ba.forEach( side => {
+                    Object.keys(delta[side])
+                        .forEach( price => {
 
-                    for(var i = 0; i < bids.length; i++){
-                        var price = bids[i]
-                        console.log("O " + ts + " bitstamp " + pair + " B " + price + " " + delta['bids'][price])
-                    }
-                }
+                            let volume = delta[side][price]
 
-                if(delta['asks']){
-                    var asks = Object.keys(delta['asks'])
-
-                    for(var i = 0; i < asks.length; i++){
-                        var price = asks[i]
-                        console.log("O " + ts + " bitstamp " + pair + " A " + price + " " + delta['asks'][price])
-                    }
-                }
+                            console.log("O " + ts + " bitstamp " + pair + " "+(side == 'bids' ? "B" : 'A')+" " + price + " " + volume)
+                        })
+                })
             }
         })
 
@@ -192,7 +180,7 @@ function fetchOrderbook(pair){
 
         setTimeout(function(){
             console.log('refetch on error bitstamp orderbook ' + pair)
-            bookState[pair]['initialized'] = false
+            bookValid[pair] = false
             fetchOrderbook(pair)
         }, 30 * 1000)
 
@@ -200,35 +188,12 @@ function fetchOrderbook(pair){
 
 }
 
-async function start(){
-
-    for(var i = 0; i < pairs.length; i++){
-
-        var pair = pairs[i]
-
-        bookState[pair] = {'initialized': false, currentBook: {'bids': {}, 'asks': {}}}
-
-        timeDb[pair] = await createTimeDb(pair)
-
-        //fetchOrderbook(pair)
-        fetchTrades(pair)
-
-        await sleep(5000)
-    }
-}
-
-function sleep(ms){
-    return new Promise( resolve => {
-        setTimeout(resolve, ms)
-    })
-}
-
-var levelup = require('levelup')
-var leveldown = require('leveldown')
+let levelup = require('levelup')
+let leveldown = require('leveldown')
 
 async function createTimeDb(pair){
 
-    var db = levelup(leveldown("./lasttrade_bitstamp_" + pair))
+    let db = levelup(leveldown("./lasttrade_bitstamp_" + pair))
 
     try{
         await db.get("time")
@@ -238,6 +203,30 @@ async function createTimeDb(pair){
     }
 
     return db
+}
+
+function sleep(ms){
+    return new Promise( resolve => {
+        setTimeout(resolve, ms)
+    })
+}
+
+async function start(){
+
+    for(let i = 0; i < pairs.length; i++){
+
+        let pair = pairs[i]
+
+        bookState[pair] = {'bids': {}, 'asks': {} }
+        bookValid[pair] = false
+
+        timeDb[pair] = await createTimeDb(pair)
+
+        fetchOrderbook(pair)
+        // fetchTrades(pair)
+
+        await sleep(5000)
+    }
 }
 
 start()
