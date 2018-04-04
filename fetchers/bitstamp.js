@@ -39,11 +39,15 @@ let https = require('https');
 let diff = require('../diff')
 let assert = require('assert')
 
-let pairs = ['btcusd']//, 'btceur']
+let levelup = require('levelup')
+let leveldown = require('leveldown')
+
+let timeDb = levelup(leveldown("./lasttradeDB_bitstamp"))
+
+let pairs = ['btcusd', 'btceur']
 
 let bookState = {}
 let bookValid = {}
-let timeDb = {}
 
 let ba = ['bids', 'asks']
 
@@ -62,7 +66,7 @@ function fetchTrades(pair){
 
             let tdata = JSON.parse(data)
 
-            let newtime = lasttime = parseInt(await timeDb[pair].get("time"))
+            let newtime = lasttime = parseInt(await timeDb.get("time-" + pair))
 
             let trades = tdata
                 .filter(t =>{
@@ -87,7 +91,7 @@ function fetchTrades(pair){
             console.log("original length: " + tdata.length + " filtered lenght: " + trades.length)
             console.log("new last timestamp: " + newtime)
 
-            await timeDb[pair].put('time', newtime)
+            await timeDb.put('time-' + pair, newtime)
 
             setTimeout(()=>{
                 fetchTrades(pair)
@@ -188,23 +192,6 @@ function fetchOrderbook(pair){
 
 }
 
-let levelup = require('levelup')
-let leveldown = require('leveldown')
-
-async function createTimeDb(pair){
-
-    let db = levelup(leveldown("./lasttrade_bitstamp_" + pair))
-
-    try{
-        await db.get("time")
-    }catch(e){
-        //define current time as value
-        await db.put("time", new Date().getTime()/1000)
-    }
-
-    return db
-}
-
 function sleep(ms){
     return new Promise( resolve => {
         setTimeout(resolve, ms)
@@ -220,10 +207,15 @@ async function start(){
         bookState[pair] = {'bids': {}, 'asks': {} }
         bookValid[pair] = false
 
-        timeDb[pair] = await createTimeDb(pair)
+        try{
+            await timeDb.get("time-" + pair)
+        }catch(e){
+            //define current time as value
+            await timeDb.put("time-" + pair, new Date().getTime()/1000)
+        }
 
         fetchOrderbook(pair)
-        // fetchTrades(pair)
+        fetchTrades(pair)
 
         await sleep(5000)
     }
